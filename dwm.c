@@ -269,6 +269,8 @@ static void setclientdesktop(Client *c);
 static void setfocus(Client *c);
 static void setfullscreen(Client *c, int fullscreen);
 static void fullscreen(const Arg *arg);
+static void showdesktop(const Arg *arg);
+static void altfocusstack(const Arg *arg);
 static void setlayout(const Arg *arg);
 static void setcfact(const Arg *arg);
 static void setmfact(const Arg *arg);
@@ -2661,6 +2663,33 @@ fullscreen(const Arg *arg)
 		setlayout(&((Arg) { .v = last_layout }));
 	}
 	togglebar(arg);
+}
+
+void
+showdesktop(const Arg *arg)
+{
+	if (selmon->tagset[selmon->seltags]) {
+		/* windows are visible - switch to the alternate tagset and clear it */
+		selmon->seltags ^= 1;
+		selmon->tagset[selmon->seltags] = 0;
+	} else {
+		/* no windows visible - restore previous tagset */
+		selmon->seltags ^= 1;
+	}
+	focus(NULL);
+	arrange(selmon);
+}
+
+void
+altfocusstack(const Arg *arg)
+{
+	if (!selmon->tagset[selmon->seltags]) {
+		/* windows hidden via showdesktop - restore them before cycling */
+		selmon->seltags ^= 1;
+		focus(NULL);
+		arrange(selmon);
+	}
+	focusstack(arg);
 }
 
 void
