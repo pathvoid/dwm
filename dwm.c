@@ -91,6 +91,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMFullscreen, NetWMHidden, NetActiveWindow, NetWMWindowType, NetWMIcon,
        NetWMWindowTypeDialog, NetClientList, NetDesktopNames, NetDesktopViewport, NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetLast }; /* EWMH atoms */
 enum { Manager, Xembed, XembedInfo, XLast }; /* Xembed atoms */
+static Atom dwmatom_togglehide;
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
 enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
        ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
@@ -832,14 +833,10 @@ clientmessage(XEvent *e)
 				|| (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->ishidden));
 			if (hide && !c->ishidden) {
 				c->ishidden = 1;
-				XUnmapWindow(dpy, c->win);
-				setclientstate(c, IconicState);
 				focus(NULL);
 				arrange(c->mon);
 			} else if (!hide && c->ishidden) {
 				c->ishidden = 0;
-				XMapWindow(dpy, c->win);
-				setclientstate(c, NormalState);
 				focus(c);
 				arrange(c->mon);
 			}
@@ -847,8 +844,6 @@ clientmessage(XEvent *e)
 	} else if (cme->message_type == netatom[NetActiveWindow]) {
 		if (c->ishidden) {
 			c->ishidden = 0;
-			XMapWindow(dpy, c->win);
-			setclientstate(c, NormalState);
 		}
 		if (c->mon != selmon)
 			selmon = c->mon;
@@ -2105,6 +2100,37 @@ propertynotify(XEvent *e)
 		updatesystray();
 	}
 
+	if ((ev->window == root) && (ev->atom == dwmatom_togglehide)) {
+		/* Toggle hide for a specific window via _DWM_TOGGLE_HIDE property */
+		Atom type;
+		int format;
+		unsigned long nitems, remain;
+		unsigned char *data = NULL;
+		if (XGetWindowProperty(dpy, root, dwmatom_togglehide, 0, 1, True,
+			AnyPropertyType, &type, &format, &nitems, &remain, &data) == Success
+			&& data && nitems > 0) {
+			Window target;
+			if (format == 32)
+				target = (Window)*(long *)data;
+			else
+				target = (Window)*(unsigned int *)data;
+			XFree(data);
+			Client *tc = wintoclient(target);
+			if (tc) {
+				if (tc->ishidden) {
+					tc->ishidden = 0;
+					focus(tc);
+				} else {
+					tc->ishidden = 1;
+					focus(NULL);
+				}
+				arrange(tc->mon);
+			}
+		} else if (data) {
+			XFree(data);
+		}
+		return;
+	}
 	if ((ev->window == root) && (ev->atom == XA_WM_NAME)) {
 		updatestatus();
 	} else if (ev->state == PropertyDelete) {
@@ -2830,6 +2856,7 @@ setup(void)
 	netatom[NetCurrentDesktop] = XInternAtom(dpy, "_NET_CURRENT_DESKTOP", False);
 	netatom[NetDesktopNames] = XInternAtom(dpy, "_NET_DESKTOP_NAMES", False);
 	netatom[NetWMDesktop] = XInternAtom(dpy, "_NET_WM_DESKTOP", False);
+	dwmatom_togglehide = XInternAtom(dpy, "_DWM_TOGGLE_HIDE", False);
 	xatom[Manager] = XInternAtom(dpy, "MANAGER", False);
 	xatom[Xembed] = XInternAtom(dpy, "_XEMBED", False);
 	xatom[XembedInfo] = XInternAtom(dpy, "_XEMBED_INFO", False);

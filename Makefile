@@ -30,7 +30,7 @@ install: all
 	chmod 644 ${DESTDIR}${MANPREFIX}/man1/dwm.1
 	mkdir -p /usr/share/xsessions/
 	test -f /usr/share/xsessions/dwm.desktop || install -Dm644 dwm.desktop /usr/share/xsessions/
-	test -f /home/${SUDO_USER}/.xinitrc || install -Dm644 .xinitrc /home/${SUDO_USER}/.xinitrc
+	install -Dm644 .xinitrc /home/${SUDO_USER}/.xinitrc
 	# Install config.h for keybinds script
 	mkdir -p /home/${SUDO_USER}/.local/share/dwm-pathvoid
 	cp -f config.h /home/${SUDO_USER}/.local/share/dwm-pathvoid/config.h
