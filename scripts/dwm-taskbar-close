@@ -1,0 +1,5 @@
+#!/bin/bash
+# Close a window by ID - sends WM_DELETE_WINDOW for graceful close
+wid="$1"
+[ -z "$wid" ] && exit 1
+wmctrl -ic "$wid"

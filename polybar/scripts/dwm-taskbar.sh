@@ -2,7 +2,7 @@
 
 # Polybar taskbar module - shows all windows on current desktop like a Windows taskbar
 # Groups windows by WM_CLASS so each app shows once (like Windows)
-# Click inactive app to focus, click active app to minimize
+# Left-click: toggle focus/minimize | Middle-click: close window
 
 COLOR_ACTIVE="${DWM_TASKBAR_ACTIVE_COLOR:-#eceff4}"
 COLOR_INACTIVE="${DWM_TASKBAR_INACTIVE_COLOR:-#d8dee9}"
@@ -52,12 +52,12 @@ update_taskbar() {
     fi
 
     # Group windows by WM_CLASS
-    declare -A class_wid         # representative window ID (prefer active, then first visible)
-    declare -A class_title       # title to display
-    declare -A class_is_active   # whether the active window belongs to this class
-    declare -A class_all_hidden  # whether all windows of this class are hidden
-    declare -A class_count       # number of windows in this class
-    local class_order=()         # preserve order of first appearance
+    declare -A class_wid
+    declare -A class_title
+    declare -A class_is_active
+    declare -A class_all_hidden
+    declare -A class_count
+    local class_order=()
     local -A class_seen
 
     while IFS= read -r wid; do
@@ -107,17 +107,14 @@ update_taskbar() {
 
         class_count[$class]=$(( ${class_count[$class]} + 1 ))
 
-        # If not hidden, this class is not all-hidden
         [ "$hidden" -eq 0 ] && class_all_hidden[$class]=0
 
-        # Check if this window is the active one
         if [ "$wid_dec" = "$active_dec" ]; then
             class_is_active[$class]=1
             class_wid[$class]="$wid"
             class_title[$class]=$(get_window_title "$wid")
         fi
 
-        # Set representative wid if not yet set
         if [ -z "${class_wid[$class]}" ]; then
             class_wid[$class]="$wid"
             class_title[$class]=$(get_window_title "$wid")
@@ -132,7 +129,6 @@ update_taskbar() {
         local title="${class_title[$class]}"
         local cnt="${class_count[$class]}"
 
-        # Add count indicator if multiple windows
         if [ "$cnt" -gt 1 ]; then
             title="$title ($cnt)"
         fi
@@ -140,27 +136,17 @@ update_taskbar() {
         [ "$idx" -gt 0 ] && output+=" "
         idx=$((idx + 1))
 
+        local act="dwm-taskbar-action"
         if [ "${class_all_hidden[$class]}" = "1" ]; then
-            # All windows hidden - dimmed, click to restore
-            output+="%{F${COLOR_HIDDEN}}%{T${FONT}}%{A1:dwm-taskbar-toggle $wid:} $title %{A}%{T-}%{F-}"
+            output+="%{A1:${act} toggle $wid:}%{A2:${act} close $wid:}%{F${COLOR_HIDDEN}}%{T${FONT}} $title %{T-}%{F-}%{A}%{A}"
         elif [ "${class_is_active[$class]}" = "1" ]; then
-            # Active app - highlighted, click to minimize
-            output+="%{F${COLOR_ACTIVE}}%{B${BG_ACTIVE}}%{T${FONT}}%{A1:dwm-taskbar-toggle $wid:} $title %{A}%{T-}%{B-}%{F-}"
+            output+="%{A1:${act} toggle $wid:}%{A2:${act} close $wid:}%{F${COLOR_ACTIVE}}%{B${BG_ACTIVE}}%{T${FONT}} $title %{T-}%{B-}%{F-}%{A}%{A}"
         else
-            # Inactive app - normal, click to focus
-            output+="%{F${COLOR_INACTIVE}}%{T${FONT}}%{A1:dwm-taskbar-toggle $wid:} $title %{A}%{T-}%{F-}"
+            output+="%{A1:${act} toggle $wid:}%{A2:${act} close $wid:}%{F${COLOR_INACTIVE}}%{T${FONT}} $title %{T-}%{F-}%{A}%{A}"
         fi
     done
 
     echo "$output"
 }
 
-if [ "$1" = "--tail" ]; then
-    update_taskbar
-    xprop -root -spy _NET_ACTIVE_WINDOW _NET_CLIENT_LIST _NET_CURRENT_DESKTOP _DWM_TOGGLE_HIDE 2>/dev/null | \
-    while read -r line; do
-        update_taskbar
-    done
-else
-    update_taskbar
-fi
+update_taskbar

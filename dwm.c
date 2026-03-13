@@ -3390,17 +3390,13 @@ unmanage(Client *c, int destroyed)
 
 	free(c);
 	if (!s) {
-		/* Find the topmost visible window */
-		for (top = m->clients; top && (!ISVISIBLE(top) || top->isfloating); top = top->next);
+		/* Find the previously focused visible window via stack order */
+		for (top = m->stack; top && !ISVISIBLE(top); top = top->snext);
 
 		if (top) {
-			/* Focus the top window and set it as the current focus */
 			focus(top);
 			restack(m);
-			/* Set the input focus to the top window */
-			XSetInputFocus(dpy, top->win, RevertToPointerRoot, CurrentTime);
 		} else {
-			/* If no top window is found, revert focus to the root window */
 			XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		}
 
