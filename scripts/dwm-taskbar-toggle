@@ -1,0 +1,16 @@
+#!/bin/bash
+# Toggle window: if active, minimize it; if hidden, restore it
+wid="$1"
+[ -z "$wid" ] && exit 1
+
+active=$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -o '0x[0-9a-fA-F]*' | tail -1)
+active_dec=$(printf "%d" "$active" 2>/dev/null)
+wid_dec=$(printf "%d" "$wid" 2>/dev/null)
+
+if [ "$wid_dec" = "$active_dec" ]; then
+    # Active window - minimize it via _NET_WM_STATE_HIDDEN
+    xdotool windowminimize "$wid_dec"
+else
+    # Not active - focus it
+    wmctrl -ia "$wid"
+fi

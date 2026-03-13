@@ -31,13 +31,20 @@ install: all
 	mkdir -p /usr/share/xsessions/
 	test -f /usr/share/xsessions/dwm.desktop || install -Dm644 dwm.desktop /usr/share/xsessions/
 	test -f /home/${SUDO_USER}/.xinitrc || install -Dm644 .xinitrc /home/${SUDO_USER}/.xinitrc
-	mkdir -p /home/${SUDO_USER}/.config/polybar
-	cp -rf polybar/* /home/${SUDO_USER}/.config/polybar/
-	chmod +x /home/${SUDO_USER}/.config/polybar/launch.sh
-	chmod +x /home/${SUDO_USER}/.config/polybar/scripts/dwm-tags.sh
-	chmod +x /home/${SUDO_USER}/.config/polybar/scripts/wallz/wallz.py
-	chmod +x /home/${SUDO_USER}/.config/polybar/scripts/weather/main.py
-	chmod +x /home/${SUDO_USER}/.config/polybar/scripts/weather/weather.sh
+	# Install config.h for keybinds script
+	mkdir -p /home/${SUDO_USER}/.local/share/dwm-pathvoid
+	cp -f config.h /home/${SUDO_USER}/.local/share/dwm-pathvoid/config.h
+	# Install polybar configs to ~/.local/share/dwm-pathvoid/polybar/
+	mkdir -p /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar
+	cp -rf polybar/* /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/launch.sh
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/scripts/dwm-tags.sh
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/scripts/dwm-taskbar.sh
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/scripts/wallz/wallz.py
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/scripts/weather/main.py
+	chmod +x /home/${SUDO_USER}/.local/share/dwm-pathvoid/polybar/scripts/weather/weather.sh
+	chown -R ${SUDO_USER}:${SUDO_USER} /home/${SUDO_USER}/.local/share/dwm-pathvoid
+	# Install scripts to PATH
 	mkdir -p ${DESTDIR}${PREFIX}/bin
 	install -Dm755 scripts/* ${DESTDIR}${PREFIX}/bin/
 

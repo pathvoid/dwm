@@ -62,7 +62,7 @@
                                * MAX(0, MIN((y)+(h),(m)->my+(m)->mh) - MAX((y),(m)->my)))
 #define INTERSECTC(x,y,w,h,z)   (MAX(0, MIN((x)+(w),(z)->x+(z)->w) - MAX((x),(z)->x)) \
                                * MAX(0, MIN((y)+(h),(z)->y+(z)->h) - MAX((y),(z)->y)))
-#define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]))
+#define ISVISIBLE(C)            ((C->tags & C->mon->tagset[C->mon->seltags]) && !C->ishidden)
 #define MOUSEMASK               (BUTTONMASK|PointerMotionMask)
 #define WIDTH(X)                ((X)->w + 2 * (X)->bw)
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
@@ -88,7 +88,7 @@ enum { CurResizeBR, CurResizeBL, CurResizeTR, CurResizeTL, CurNormal, CurResize,
 enum { SchemeNorm, SchemeSel }; /* color schemes */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetSystemTray, NetSystemTrayOP, NetSystemTrayOrientation, NetSystemTrayOrientationHorz,
-       NetWMFullscreen, NetActiveWindow, NetWMWindowType, NetWMIcon,
+       NetWMFullscreen, NetWMHidden, NetActiveWindow, NetWMWindowType, NetWMIcon,
        NetWMWindowTypeDialog, NetClientList, NetDesktopNames, NetDesktopViewport, NetNumberOfDesktops, NetCurrentDesktop, NetWMDesktop, NetLast }; /* EWMH atoms */
 enum { Manager, Xembed, XembedInfo, XLast }; /* Xembed atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
@@ -123,6 +123,7 @@ struct Client {
 	unsigned int tags;
 	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen, isterminal, noswallow;
 	int issteam;
+	int ishidden;
 	int beingmoved;
 	int fakefullscreen;
 	pid_t pid;
@@ -332,7 +333,7 @@ static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
 static Systray *systray = NULL;
 static const char broken[] = "broken";
-static const char dwmdir[] = "github/dwm-titus/scripts";
+static const char dwmdir[] = "github/dwm-pathvoid/scripts";
 static const char localshare[] = "";
 static char stext[256];
 static int statusw;
@@ -825,9 +826,36 @@ clientmessage(XEvent *e)
 			setfullscreen(c, (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD    */
 				|| (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->isfullscreen)));
 		}
+		if (cme->data.l[1] == netatom[NetWMHidden]
+		|| cme->data.l[2] == netatom[NetWMHidden]) {
+			int hide = (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD */
+				|| (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->ishidden));
+			if (hide && !c->ishidden) {
+				c->ishidden = 1;
+				XUnmapWindow(dpy, c->win);
+				setclientstate(c, IconicState);
+				focus(NULL);
+				arrange(c->mon);
+			} else if (!hide && c->ishidden) {
+				c->ishidden = 0;
+				XMapWindow(dpy, c->win);
+				setclientstate(c, NormalState);
+				focus(c);
+				arrange(c->mon);
+			}
+		}
 	} else if (cme->message_type == netatom[NetActiveWindow]) {
-		if (c != selmon->sel && !c->isurgent)
-			seturgent(c, 1);
+		if (c->ishidden) {
+			c->ishidden = 0;
+			XMapWindow(dpy, c->win);
+			setclientstate(c, NormalState);
+		}
+		if (c->mon != selmon)
+			selmon = c->mon;
+		if (!ISVISIBLE(c))
+			c->tags = c->mon->tagset[c->mon->seltags];
+		focus(c);
+		arrange(c->mon);
 	} else if (cme->message_type == netatom[NetWMDesktop]) {
 		/* Handle external desktop/workspace change requests */
 		long desktop = cme->data.l[0];
@@ -2793,6 +2821,7 @@ setup(void)
 	netatom[NetWMState] = XInternAtom(dpy, "_NET_WM_STATE", False);
 	netatom[NetWMCheck] = XInternAtom(dpy, "_NET_SUPPORTING_WM_CHECK", False);
 	netatom[NetWMFullscreen] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+	netatom[NetWMHidden] = XInternAtom(dpy, "_NET_WM_STATE_HIDDEN", False);
 	netatom[NetWMWindowType] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE", False);
 	netatom[NetWMWindowTypeDialog] = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
 	netatom[NetClientList] = XInternAtom(dpy, "_NET_CLIENT_LIST", False);
@@ -3659,7 +3688,7 @@ void
 updatestatus(void)
 {
 	if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext))) {
-		strcpy(stext, "dwm-titus:"VERSION);
+		strcpy(stext, "dwm-pathvoid:"VERSION);
 		statusw = TEXTW(stext) - lrpad + 2;
 	} else {
 		char *text, *s, ch;
