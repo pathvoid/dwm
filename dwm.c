@@ -943,6 +943,9 @@ configurenotify(XEvent *e)
            resizeclient(c, m->mx, m->my, m->mw, m->mh);
 				resizebarwin(m);
 			}
+			initmonitortags();
+			if (usealtbar)
+				spawnbar();
 			arrange(NULL);
 			focus(NULL);
 		}
@@ -1196,20 +1199,7 @@ drawbars(void)
 void
 enternotify(XEvent *e)
 {
-	Client *c;
-	Monitor *m;
-	XCrossingEvent *ev = &e->xcrossing;
-
-	if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
-		return;
-	c = wintoclient(ev->window);
-	m = c ? c->mon : wintomon(ev->window);
-	if (m != selmon) {
-		unfocus(selmon->sel, 1);
-		selmon = m;
-	} else if (!c || c == selmon->sel)
-		return;
-	focus(c);
+	/* Click-to-focus only — do not change focus on mouse hover */
 }
 
 void
@@ -3112,18 +3102,27 @@ void
 tagmon(const Arg *arg)
 {
 	Client *c = selmon->sel;
+	Monitor *dest;
 	if (!c || !mons->next)
 		return;
+	dest = dirtomon(arg->i);
 	if (c->isfullscreen) {
 		c->isfullscreen = 0;
-		sendmon(c, dirtomon(arg->i));
+		sendmon(c, dest);
 		c->isfullscreen = 1;
 		if (c->fakefullscreen != 1) {
 			resizeclient(c, c->mon->mx, c->mon->my, c->mon->mw, c->mon->mh);
 			XRaiseWindow(dpy, c->win);
 		}
 	} else
-		sendmon(c, dirtomon(arg->i));
+		sendmon(c, dest);
+	selmon = dest;
+	/* Ensure the destination monitor is viewing the client's tag */
+	if (!(dest->tagset[dest->seltags] & c->tags)) {
+		dest->tagset[dest->seltags] = c->tags;
+		arrange(dest);
+	}
+	focus(c);
 }
 
 Client *
